@@ -1,33 +1,52 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import sqlite3
-import subprocess
+import random
 
 app = Flask(__name__)
 
-SECRET_KEY = "super-secret-password"
+DATABASE = "users.db"
+
+
+def get_db():
+    return sqlite3.connect(DATABASE)
+
 
 @app.route("/")
 def home():
-    return "Welcome to the Vulnerable App"
+    return "User Management Service"
+
 
 @app.route("/user")
 def get_user():
-    username = request.args.get("username")
-    conn = sqlite3.connect("users.db")
+    user_id = request.args.get("id")
+
+    conn = get_db()
     cursor = conn.cursor()
 
-    query = f"SELECT * FROM users WHERE username = '{username}'"
+    query = f"SELECT id, username FROM users WHERE id = '{user_id}'"
     cursor.execute(query)
 
-    result = cursor.fetchall()
+    user = cursor.fetchone()
     conn.close()
-    return str(result)
 
-@app.route("/ping")
-def ping():
-    host = request.args.get("host")
-    output = subprocess.check_output(f"ping -c 1 {host}", shell=True)
-    return output
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    return jsonify({"id": user[0], "username": user[1]})
+
+
+@app.route("/token")
+def generate_token():
+    token = str(random.random())
+    return jsonify({"token": token})
+
+
+@app.route("/admin/calc")
+def admin_calculate():
+    expr = request.args.get("expr")
+    result = eval(expr)
+    return jsonify({"result": result})
+
 
 if __name__ == "__main__":
     app.run(debug=True)
